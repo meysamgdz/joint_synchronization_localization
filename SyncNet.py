@@ -1,19 +1,20 @@
-
-
+import numpy as np
 from helper import *
 from numpy.linalg import *
+
 class SyncNet:
-    def __init__(self, Nodes = ['N_1', 'N_2', 'N_3', 'N_4', 'N_5', 'N_6', 'N_7', 'N_8', 'N_9'],
-                 KF_nodes=['N_21', 'N_31', 'N_41', 'N_42', 'N_51', 'N_52', 'N_61', 'N_62', 'N_71', 'N_81', 'N_82',
+    def __init__(self, Nodes: list = ['N_1', 'N_2', 'N_3', 'N_4', 'N_5', 'N_6', 'N_7', 'N_8', 'N_9'],
+                 KF_nodes: list = ['N_21', 'N_31', 'N_41', 'N_42', 'N_51', 'N_52', 'N_61', 'N_62', 'N_71', 'N_81', 'N_82',
                            'N_91', 'N_92'],
-                 Factors=['F_12', 'F_17', 'F_26', 'F_23', 'F_29', 'F_34', 'F_35', 'F_45', 'F_47', 'F_48', 'F_56',
-                          'F_58', 'F_69'], syncType='hybrid'):
+                 Factors: list = ['F_12', 'F_17', 'F_26', 'F_23', 'F_29', 'F_34', 'F_35', 'F_45', 'F_47', 'F_48', 'F_56',
+                          'F_58', 'F_69'], syncType: str = 'hybrid'):
         self.Nodes = Nodes
         self.Factors = Factors
         self.KF_nodes = KF_nodes
         self.syncType = syncType
 
-    def brf(self, the_i, the_j, gamma_i, gamma_j, i, num_ex, std):
+    def brf(self, the_i: float, the_j: float, gamma_i: float, gamma_j: float, i: int, num_ex: int,
+            std: float) -> tuple[np.ndarray, np.ndarray]:
         """
         This function implements the Bayesian Recursive Filtering algorithm to estimate the offset and skew of a wireless sensor node.
         The function takes the initial offset and skew of the node, as well as the offset and skew of the node it is communicating with, as inputs.
@@ -61,7 +62,8 @@ class SyncNet:
         real_clk_skw[0] = clk_skw_k[0] / clk_skw_k[1]
         real_clk_skw[1] = 1 / clk_skw_k[1]
         return real_clk_skw, np.sqrt(np.diag(P_n))
-    def synchronize(self, sim_iter=1, low=-1e3, high=1e3, GrandMaster='1', L_bp_iter=8, num_ex=20, std=8):
+    def synchronize(self, sim_iter: int = 1, low: float = -1e3, high: float = 1e3, GrandMaster: str = '1',
+                    L_bp_iter: int = 8, num_ex: int = 20, std: float = 8) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         This function simulates the Belief Propagation (BP) algorithm for estimating the offset and skew in a wireless
         sensor network. The network consists of several nodes, each with its own clock, and factors, which represent
@@ -110,7 +112,7 @@ class SyncNet:
                 F_prior_mu.update({temp: np.array([[1, 0]]).T})
                 F_prior_std.update({temp: np.array([[1e-3, 0], [0, 1e+8]])})
         relative_offset = 0
-        for u in np.arange(sim_iter):
+        for _ in np.arange(sim_iter):
             # print(u)
             for nd in self.Nodes + self.KF_nodes:
                 node_ind = nd.split('_')[1]
@@ -242,7 +244,8 @@ class SyncNet:
         return relative_offset[4], the_est_fin[l, [-3, -4]], skw_est_fin[l, [-3, -4]]
 
     @staticmethod
-    def timestamp_exchange(the_i, the_j, gamma_i, gamma_j, num_ex, std, asym=False):
+    def timestamp_exchange(the_i: float, the_j: float, gamma_i: float, gamma_j: float, num_ex: int, std: float,
+                           asym: bool = False) -> np.ndarray:
         """
         This is a Python function that simulates timestamps for a communication event between two devices, labeled as i and
         j. It takes in several inputs: the initial time (the_i, the_j), the rate of time drift for each device

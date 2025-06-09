@@ -1,9 +1,8 @@
 import numpy as np
 from numpy.random import *
 
-def der_arctan(traj_point, AP_pos):
-    """
-    This function returns the derivative of arctan and the arctan value at the trajectory point, both utilized to
+def der_arctan(traj_point: np.ndarray, AP_pos: np.ndarray):
+    """ This function returns the derivative of arctan and the arctan value at the trajectory point, both utilized to
     compute the Taylor expansion.
 
     Args:
@@ -28,16 +27,16 @@ def der_arctan(traj_point, AP_pos):
     return der_AoA, AoA_0
 
 
-def create_uniform_particles(x_range, y_range, N):
-    """
-    Creates uniform particles across the environment
+def create_uniform_particles(x_range: tuple, y_range: tuple, N: int):
+    """ Creates uniform particles across the environment.
+
     Args:
-    x_range (tuple): range of x-axis for the particles
-    y_range (tuple): range of y-axis for the particles
-    N (int): number of particles to be created
+        x_range (tuple): range of x-axis for the particles
+        y_range (tuple): range of y-axis for the particles
+        N (int): number of particles to be created
 
     Returns:
-    particles (np.array): array of size (N,2) representing the positions of the particles on x and y axis
+        particles (np.array): array of size (N,2) representing the positions of the particles on x and y axis
     """
     particles = np.empty((N, 2))
     particles[:, 0] = uniform(x_range[0], x_range[1], size=N)
@@ -45,9 +44,9 @@ def create_uniform_particles(x_range, y_range, N):
     return particles
 
 
-def resample(particles, particle_noise, weights, N):
-    """
-    Resamples the particles based on their weight distribution
+def resample(particles: np.ndarray, particle_noise: np.ndarray, weights: np.ndarray, N: int):
+    """ Resamples the particles based on their weight distribution.
+
     Args:
     - particles: array of particles
     - particle_noise: noise to add to the particles
@@ -56,7 +55,7 @@ def resample(particles, particle_noise, weights, N):
 
     Returns:
     -resampled particles
-        """
+    """
     position_indx = np.arange(N)
     # Dedicating more particles to the intervals with higher prob.
     bins = np.add.accumulate(weights)
@@ -65,9 +64,10 @@ def resample(particles, particle_noise, weights, N):
     return particles_resampled
 
 
-def aoa_std(x, a1=1.82, b1=22.52, a2=1.68, b2=28.38, a3=0.68, b3=9.34):
-    """This function retruns the standard deviation corresponding to a groundtruth AoA calulated using the ground-
-    truth trajectory of a user. The function has been fitted using the simulation data from Quadriga channel model
-    and for a straight line scenario"""
+def aoa_std(x, a1: float = 1.82, b1: float = 22.52, a2: float = 1.68, b2: float = 28.38,
+            a3: float = 0.68, b3: float = 9.34):
+    """ Computes the standard deviation corresponding to a ground-truth AoA calulated using the trajectory of a user.
+    The function has been fitted using the simulation data from Quadriga channel model for a straight line scenario.
+    """
     return a1 * np.exp(-(x - 45) ** 2 / 2 / b1 ** 2) + a2 * np.exp(-(x - 130) ** 2 / 2 / b2 ** 2) - a3 * np.exp(
         -(x - 90) ** 2 / 2 / b3 ** 2)

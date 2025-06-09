@@ -1,18 +1,16 @@
-
-import matplotlib.pyplot as plt
+import numpy as np
 from numpy.linalg import *
-import jointSyncLoc as slf
-import os
 from SyncNet import SyncNet
 from helper import *
 
 
 class jointSyncLoc:
-    def __init__(self, v_const, T,  AP_step):
+    def __init__(self, v_const: float, T: float,  AP_step: int):
         self.v_const = v_const
         self.T = T
         self.AP_step = AP_step
-    def brf_loc_xAP(self, mu_t=1, std=8, num_iter=1, num_AP=1, nlos_id=0):
+    def brf_loc_xAP(self, mu_t: float = 1, std: float = 8, num_iter: int = 1, num_AP: int = 1,
+                    nlos_id: int = 0) -> tuple[np.ndarray, np.ndarray]:
         """
         This function returns the location of the object using the linearized Bayesian Recursive Filtering (L-BRF)
         and the location of the Access Points (APs).
@@ -74,7 +72,7 @@ class jointSyncLoc:
                 dist = np.sum((UE_pos - sat_loc) ** 2, axis=1) ** 0.5
                 dist_sort = np.sort(dist)
 
-                network = slf.SyncNet()
+                network = SyncNet()
                 AP_pos = np.empty((0, 2))
                 logic1 = []
                 # checking whether an AP is on the x or y-axis. Plus, collecting time-stamps exchanged btw the UE and
@@ -166,9 +164,9 @@ class jointSyncLoc:
                         prev_state[0] = 1
                         prev_state[1] = 0
                     x_loc = x_loc + [error]
-        print('An2', count)
         return np.array(x_loc), np.array(x_off)
-    def PF_loc_xAP(self, mu_t=1, std=8, num_iter=1, num_particles=500, num_AP=1, nlos_id=0):
+    def PF_loc_xAP(self, mu_t: float = 1, std: float = 8, num_iter: int = 1, num_particles: int = 500, num_AP: int = 1,
+                   nlos_id: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
             This function uses the hybrid parametric and particle filter algorithm to estimate the clock and location
             parameters f the user equipment (UE) while taking into account the location of the access points (APs).
@@ -231,7 +229,7 @@ class jointSyncLoc:
                     los_det = los_true
 
                 # Retrieving the indices of the closest APs and their respective clock parameters
-                network = slf.SyncNet()
+                network = SyncNet()
                 # particle_noise = np.random.normal(0, sig_p_noise, size=(num_particles, 2))
                 UE_pos = mob_ag[i, :]
                 mu_v = mu_t + (los_true == 0) * np.abs(np.random.normal(2, 2, 1))
@@ -359,7 +357,8 @@ class jointSyncLoc:
                     x_loc = x_loc + [error]
 
         return np.array(x_loc), np.array(x_off), np.array(N_eff)  # (x_off/(num_iter*traj_len-count))**0.5
-    def get_AP_loc(self, distance=200, x_init_traj=10, x_init_AN=30, y_init=200):
+    def get_AP_loc(self, distance: float = 200, x_init_traj: float = 10, x_init_AP: float = 30,
+                   y_init: float = 200) -> tuple[np.ndarray, np.ndarray]:
         """
         This function returns the location of Access Point(AP) and indices of the APs on the y axis (This is useful to
         know when calculating the AoA estimation error because the antenna aperture is 90 rototed.).
@@ -375,7 +374,7 @@ class jointSyncLoc:
         ind (numpy array): Indices of the APs on the y axis.
         """
         dist_to_mid_str = 5
-        grid = np.arange(x_init_AN, 2 * distance, self.AP_step)
+        grid = np.arange(x_init_AP, 2 * distance, self.AP_step)
         grid_p = grid + self.AP_step / 2
         sat_loc_temp_1 = np.array([grid_p, (y_init + dist_to_mid_str) * np.ones(len(grid))]).T
         sat_loc_temp_2 = np.array([grid, (y_init - dist_to_mid_str) * np.ones(len(grid))]).T
@@ -405,7 +404,7 @@ class jointSyncLoc:
                         np.expand_dims(np.where(grid[ind_temp - 1] == sat_loc.T[0, :])[0], axis=0), axis=1)[0]
         sat_loc = sat_loc + np.random.normal(0, 0.1, np.shape(sat_loc))
         return sat_loc, ind
-    def get_traj(self, distance=200, x_init=10, y_init=200):
+    def get_traj(self, distance: float = 200, x_init: float = 10, y_init: float = 200) -> np.ndarray:
         """
         This function returns the trajectory of the object in 2D space.
 
@@ -484,26 +483,30 @@ class jointSyncLoc:
         return mob_ag
 
     @staticmethod
-    def timestamp_exchange(the_i, the_j, gamma_i, gamma_j, AP_pos, UE_pos, const_delay, std, num_ex, asym=True):
+    def timestamp_exchange(the_i: float, the_j: float, gamma_i: float, gamma_j: float, AP_pos: np.ndarray,
+                           UE_pos: np.ndarray, const_delay: float, std: float, num_ex: int,
+                           asym: bool = True) -> np.ndarray:
         """
-        This is a Python function that simulates timestamps for a communication event between two devices, labeled as i and
-        j. It takes in several inputs: the initial time (the_i, the_j), the rate of time drift for each device
-        (gamma_i, gamma_j), the number of iterations (num_ex) to run the simulation, and the standard deviation (std) of
-        the egress and ingress time (T_n and R_n) which are modeled as random normal variables. It returns a 4xiter array
-        of timestamps, where each column represents a single iteration of the simulation and the rows correspond to
-        different events (egress from i, ingress to j, egress from j, ingress to i). The function also includes a
-        fixed waiting time, distance between the devices, and a fixed time (T) between iterations.
+        Simulates timestamp exchanges between two communicating devices (device i and device j) over multiple iterations,
+        accounting for clock offset, skew, and network delays.
+
+        Each iteration models a round of message exchanges including transmission delays, clock drifts, and optionally
+        asymmetric communication patterns. The resulting timestamps represent send and receive events from each device's clock.
 
         Args:
-        - theta_i (float): Initial timestamp for device i
-        - theta_j (float): Initial timestamp for device j
-        - gamma_i (float): Rate of time drift for device i
-        - gamma_j (float): Rate of time drift for device j
-        - num_ex (int): Number of iterations to run the simulation
-        - std (float): Standard deviation of the egress and ingress time
+            the_i (float): Initial clock offset of device i.
+            the_j (float): Initial clock offset of device j.
+            gamma_i (float): Clock skew (rate multiplier) of device i.
+            gamma_j (float): Clock skew (rate multiplier) of device j.
+            AP_pos: Position of the access point (can be a NumPy array or list).
+            UE_pos (np.ndarray): Position of the user equipment (device).
+            const_delay (float): Constant delay component in communication.
+            std (float): Standard deviation of random delay added to transmission and reception times.
+            num_ex (int): Number of iterations (timestamp exchanges) to simulate.
+            asym (bool, optional): Whether to use an asymmetric exchange pattern (default is True).
 
         Returns:
-        - C_stamp (numpy array): The exchanged time-stamps
+            C_stamp (numpy array): The exchanged time-stamps
         """
         sigma_eg = std
         sigma_ing = std
@@ -540,38 +543,3 @@ class jointSyncLoc:
                 C_stamp[2, i] = gamma_j * (t + waiting_time + d_ij + T_n + waiting_time) + the_j
                 C_stamp[3, i] = gamma_i * (t + waiting_time + d_ij + T_n + waiting_time + d_ij + R_n) + the_i
         return C_stamp
-
-    def retrieve_ap_off_skew(bp_flag, std):
-        if bp_flag[0] == 1:
-            rand_num = np.random.randint(0, 1000)
-            temp1 = np.load('./results_save/true_off_bp_' + bp_flag[1] + 'th.npy')
-            true_off = temp1[2 * (int(std) - 1):2 * int(std), rand_num]
-            temp2 = np.load('./results_save/true_skew_bp_' + bp_flag[1] + 'th.npy')
-            true_skew = 1.0 + temp2[2 * (int(std) - 1):2 * int(std), rand_num]
-            theta_1, theta_2, gamma_1, gamma_2 = true_off[0], true_off[1], true_skew[0], true_skew[1]
-            rand_num = np.random.randint(0, 1000)
-            true_off = temp1[2 * (int(std) - 1):2 * int(std), rand_num]
-            true_skew = 1.0 + temp2[2 * (int(std) - 1):2 * int(std), rand_num]
-            theta_3, theta_4, gamma_3, gamma_4 = true_off[0], true_off[1], true_skew[0], true_skew[1]
-            cl_param = {'theta_1': theta_1, 'theta_2': theta_2, 'theta_3': theta_3, 'theta_4': theta_4,
-                        'gamma_1': gamma_1, 'gamma_2': gamma_2, 'gamma_3': gamma_3, 'gamma_4': gamma_4}
-        else:
-            rand_num = np.random.randint(0, 1000)
-            temp1 = np.load('./results_save/true_off_hyb_' + bp_flag[1] + 'th.npy')
-            true_off = temp1[2 * (int(std) - 1):2 * int(std), rand_num]
-            temp2 = np.load('./results_save/true_skew_hyb_' + bp_flag[1] + 'th.npy')
-            true_skew = 1.0 + temp2[2 * (int(std) - 1):2 * int(std), rand_num]
-            theta_1, theta_2, gamma_1, gamma_2 = true_off[0], true_off[1], true_skew[0], true_skew[1]
-            rand_num = np.random.randint(0, 1000)
-            true_off = temp1[2 * (int(std) - 1):2 * int(std), rand_num]
-            true_skew = 1.0 + temp2[2 * (int(std) - 1):2 * int(std), rand_num]
-            theta_3, theta_4, gamma_3, gamma_4 = true_off[0], true_off[1], true_skew[0], true_skew[1]
-            rand_num = np.random.randint(0, 1000)
-            true_off = temp1[2 * (int(std) - 1):2 * int(std), rand_num]
-            true_skew = 1.0 + temp2[2 * (int(std) - 1):2 * int(std), rand_num]
-            theta_5, theta_6, gamma_5, gamma_6 = true_off[0], true_off[1], true_skew[0], true_skew[1]
-            cl_param = {'theta_1': theta_1, 'theta_2': theta_2, 'theta_3': theta_3, 'theta_4': theta_4,
-                        'theta_5': theta_5, 'theta_6': theta_6,
-                        'gamma_1': gamma_1, 'gamma_2': gamma_2, 'gamma_3': gamma_3, 'gamma_4': gamma_4,
-                        'gamma_5': gamma_5, 'gamma_6': gamma_6}
-        return cl_param
